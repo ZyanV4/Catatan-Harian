@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catatan Harian</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 1200px;
+            text-align: center;
+            display: flex;
+            flex-direction: row;
+            gap: 15px;
+            margin: 0 10px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 210px;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px 0;
+            flex: 1;
+            margin-right: 10px;
+            box-sizing: border-box;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .delete-all {
+            background-color: #dc3545;
+        }
+
+        .delete-all:hover {
+            background-color: #c82333;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        li {
+            background-color: #f9f9f9;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            position: relative;
+            text-align: left;
+        }
+
+        li button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+
+        .popup {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .popup-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            transform: scale(0);
+            animation: pop-in 0.3s forwards;
+        }
+
+        .popup-content button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .popup-content button:hover {
+            background-color: #0056b3;
+        }
+
+        .popup-content .cancel-button {
+            background-color: #dc3545;
+        }
+
+        .popup-content .cancel-button:hover {
+            background-color: #c82333;
+        }
+
+        @keyframes pop-in {
+            to {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes pop-out {
+            to {
+                transform: scale(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <!-- Firebase Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div style="width: 100%;">
+            <h2>Catatan Harian</h2>
+            <textarea id="note-input" placeholder="Tulis catatanmu di sini..."></textarea>
+            <div class="button-container">
+                <button id="save-button">Simpan Catatan</button>
+                <button id="delete-all-button" class="delete-all">Hapus Semua</button>
+            </div>
+        </div>
+        <div style="width: 100%;">
+            <h2>Daftar Catatan</h2>
+            <ul id="note-list"></ul>
+        </div>
+    </div>
+
+    <!-- Save Confirmation Popup -->
+    <div id="save-popup" class="popup">
+        <div class="popup-content">
+            <h2>Catatan Tersimpan!</h2>
+            <button id="close-save-popup">OK</button>
+        </div>
+    </div>
+
+    <!-- Delete All Popup -->
+    <div id="delete-popup" class="popup">
+        <div class="popup-content">
+            <h2>Hapus Semua Catatan</h2>
+            <p>Apakah Anda yakin ingin menghapus semua catatan?</p>
+            <button id="confirm-delete-all">Hapus Semua</button>
+            <button class="cancel-button" id="cancel-delete-popup">Batal</button>
+        </div>
+    </div>
+
+    <!-- Empty Note Input Popup -->
+    <div id="empty-note-input-popup" class="popup">
+        <div class="popup-content">
+            <h2>Catatan Kosong</h2>
+            <p>Mohon isi catatan terlebih dahulu sebelum menyimpan.</p>
+            <button id="close-empty-note-input-popup">OK</button>
+        </div>
+    </div>
+
+    <!-- Empty Notes Popup -->
+    <div id="empty-notes-popup" class="popup">
+        <div class="popup-content">
+            <h2>Catatan Kosong</h2>
+            <p>Tidak ada catatan untuk dihapus.</p>
+            <button id="close-empty-notes-popup">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCmLxRel6MjcYQiEli74HibZh_gyw3p2yM",
+            authDomain: "testings-5f5e8.firebaseapp.com",
+            projectId: "testings-5f5e8",
+            storageBucket: "testings-5f5e8.appspot.com",
+            messagingSenderId: "110052859036",
+            appId: "1:110052859036:web:ba0d48f2fa27cc9379e159",
+            measurementId: "G-WTBSE9SXJ0"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        document.addEventListener('DOMContentLoaded', loadNotes);
+        document.getElementById('save-button').addEventListener('click', saveNote);
+        document.getElementById('delete-all-button').addEventListener('click', () => {
+            const noteList = document.getElementById('note-list');
+            if (noteList.children.length === 0) {
+                showEmptyNotesPopup();
+            } else {
+                document.getElementById('delete-popup').style.display = 'flex';
+            }
+        });
+        document.getElementById('cancel-delete-popup').addEventListener('click', () => closePopup('delete-popup'));
+        document.getElementById('confirm-delete-all').addEventListener('click', deleteAllNotes);
+        document.getElementById('close-save-popup').addEventListener('click', () => closePopup('save-popup'));
+        document.getElementById('close-empty-note-input-popup').addEventListener('click', () => closePopup('empty-note-input-popup'));
+        document.getElementById('close-empty-notes-popup').addEventListener('click', () => closePopup('empty-notes-popup'));
+
+        function loadNotes() {
+            const noteList = document.getElementById('note-list');
+            database.ref('notes').on('value', (snapshot) => {
+                noteList.innerHTML = '';
+                snapshot.forEach((childSnapshot) => {
+                    addNoteToList(childSnapshot.val());
+                });
+            });
+        }
+
+        function saveNote() {
+            const noteInput = document.getElementById('note-input');
+            const noteText = noteInput.value.trim();
+
+            if (noteText !== '') {
+                database.ref('notes').push(noteText);
+                noteInput.value = '';
+                showSavePopup();
+            } else {
+                showEmptyNoteInputPopup();
+            }
+        }
+
+        function showSavePopup() {
+            document.getElementById('save-popup').style.display = 'flex';
+        }
+
+        function showEmptyNoteInputPopup() {
+            document.getElementById('empty-note-input-popup').style.display = 'flex';
+        }
+
+        function showEmptyNotesPopup() {
+            document.getElementById('empty-notes-popup').style.display = 'flex';
+        }
+
+        function closePopup(popupId) {
+            const popup = document.getElementById(popupId);
+            const popupContent = popup.querySelector('.popup-content');
+            popupContent.style.animation = 'pop-out 0.3s forwards';
+            popupContent.addEventListener('animationend', () => {
+                popup.style.display = 'none';
+                popupContent.style.animation = '';
+            }, { once: true });
+        }
+
+        function addNoteToList(noteText) {
+            const noteList = document.getElementById('note-list');
+            const noteItem = document.createElement('li');
+            noteItem.textContent = noteText;
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Hapus';
+            deleteButton.addEventListener('click', () => {
+                const noteRef = database.ref('notes').orderByValue().equalTo(noteText);
+                noteRef.once('value', (snapshot) => {
+                    snapshot.forEach((childSnapshot) => {
+                        childSnapshot.ref.remove();
+                    });
+                });
+            });
+
+            noteItem.appendChild(deleteButton);
+            noteList.appendChild(noteItem);
+        }
+
+        function deleteAllNotes() {
+            database.ref('notes').remove();
+            closePopup('delete-popup');
+        }
+    </script>
+</body>
+</html>
