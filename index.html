@@ -123,8 +123,6 @@
             max-width: 400px;
             text-align: center;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            transform: scale(0);
-            animation: pop-in 0.3s forwards;
         }
 
         .popup-content button {
@@ -147,18 +145,6 @@
 
         .popup-content .cancel-button:hover {
             background-color: #c82333;
-        }
-
-        @keyframes pop-in {
-            to {
-                transform: scale(1);
-            }
-        }
-
-        @keyframes pop-out {
-            to {
-                transform: scale(0);
-            }
         }
 
         @media (max-width: 768px) {
@@ -261,7 +247,8 @@
             database.ref('notes').on('value', (snapshot) => {
                 noteList.innerHTML = '';
                 snapshot.forEach((childSnapshot) => {
-                    addNoteToList(childSnapshot.val());
+                    const note = childSnapshot.val().text;
+                    addNoteToList(note, childSnapshot.key);
                 });
             });
         }
@@ -271,7 +258,7 @@
             const noteText = noteInput.value.trim();
 
             if (noteText !== '') {
-                database.ref('notes').push(noteText);
+                database.ref('notes').push({text: noteText});
                 noteInput.value = '';
                 showSavePopup();
             } else {
@@ -293,15 +280,10 @@
 
         function closePopup(popupId) {
             const popup = document.getElementById(popupId);
-            const popupContent = popup.querySelector('.popup-content');
-            popupContent.style.animation = 'pop-out 0.3s forwards';
-            popupContent.addEventListener('animationend', () => {
-                popup.style.display = 'none';
-                popupContent.style.animation = '';
-            }, { once: true });
+            popup.style.display = 'none';
         }
 
-        function addNoteToList(noteText) {
+        function addNoteToList(noteText, key) {
             const noteList = document.getElementById('note-list');
             const noteItem = document.createElement('li');
             noteItem.textContent = noteText;
@@ -309,12 +291,7 @@
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'Hapus';
             deleteButton.addEventListener('click', () => {
-                const noteRef = database.ref('notes').orderByValue().equalTo(noteText);
-                noteRef.once('value', (snapshot) => {
-                    snapshot.forEach((childSnapshot) => {
-                        childSnapshot.ref.remove();
-                    });
-                });
+                database.ref('notes/' + key).remove();
             });
 
             noteItem.appendChild(deleteButton);
